@@ -5,8 +5,9 @@ import akka.stream.ActorMaterializer
 import cats.effect.IO
 import cats.instances.future._
 import com.typesafe.config.ConfigFactory
+import doobie.util.transactor.Transactor
 import monix.execution.Scheduler
-import ru.tinkoff.fintech.crwlr.httpserver.storage.{JobStorage, SlickStorage}
+import ru.tinkoff.fintech.crwlr.httpserver.storage.{DoobieStorage, JobStorage, SlickStorage}
 import ru.tinkoff.fintech.crwlr.httpserver.{AkkaServer, Http4sServer, JobManager}
 import slick.jdbc.H2Profile.api._
 
@@ -23,9 +24,19 @@ object Server extends App {
 
   val launcher = new Launcher()
 
-  implicit val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
-  implicit val storage: JobStorage[Future] = SlickStorage.build
+//  implicit val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
+//  implicit val storage: JobStorage[Future] = SlickStorage.build
+//  Await.result(dbExecutor(SlickStorage.setup), Duration.Inf)
+
+  val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
   Await.result(dbExecutor(SlickStorage.setup), Duration.Inf)
+
+  implicit val cs = IO.contextShift(Scheduler.io(name = "job-storage"))
+  implicit val cioExecutor = DoobieStorage.connectionIOtoIO(Transactor.fromDriverManager[IO](
+    driver = config.getString("h2jobs.driver"),
+    url = config.getString("h2jobs.url")
+  ))
+  implicit val storage: JobStorage[IO] = DoobieStorage.build
 
   val jmFuture = new JobManager[Future](launcher)
   val akkaServer = new AkkaServer(config.getString("server.akka.interface"),

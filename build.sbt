@@ -54,3 +54,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
   "com.h2database" % "h2" % "1.4.197"
 )
+
+val doobieVersion = "0.6.0"
+
+libraryDependencies ++= Seq(
+  "org.tpolecat" %% "doobie-core" % doobieVersion,
+  "org.tpolecat" %% "doobie-h2" % doobieVersion
+)
