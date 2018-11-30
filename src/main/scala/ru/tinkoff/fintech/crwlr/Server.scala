@@ -24,19 +24,19 @@ object Server extends App {
 
   val launcher = new Launcher()
 
-  implicit val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
-  implicit val storage: JobStorage[Future] = SlickStorage.build
+//  implicit val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
+//  implicit val storage: JobStorage[Future] = SlickStorage.build
+//  Await.result(dbExecutor(SlickStorage.setup), Duration.Inf)
+
+  val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
   Await.result(dbExecutor(SlickStorage.setup), Duration.Inf)
 
-//  val dbExecutor = SlickStorage.dbioToFuture(Database.forConfig("h2jobs"))
-//  Await.result(dbExecutor(SlickStorage.setup), Duration.Inf)
-//
-//  implicit val cs = IO.contextShift(Scheduler.io(name = "job-storage"))
-//  implicit val cioExecutor = DoobieStorage.connectionIOtoIO(Transactor.fromDriverManager[IO](
-//    driver = config.getString("h2jobs.driver"),
-//    url = config.getString("h2jobs.url")
-//  ))
-//  implicit val storage: JobStorage[IO] = DoobieStorage.build
+  implicit val cs = IO.contextShift(Scheduler.io(name = "job-storage"))
+  implicit val cioExecutor = DoobieStorage.connectionIOtoIO(Transactor.fromDriverManager[IO](
+    driver = config.getString("h2jobs.driver"),
+    url = config.getString("h2jobs.url")
+  ))
+  implicit val storage: JobStorage[IO] = DoobieStorage.build
 
   val jmFuture = new JobManager[Future](launcher)
   val akkaServer = new AkkaServer(config.getString("server.akka.interface"),
