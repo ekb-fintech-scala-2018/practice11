@@ -46,3 +46,11 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
+
+val slickVersion = "3.2.3"
+
+libraryDependencies ++= Seq(
+  "com.typesafe.slick" %% "slick" % slickVersion,
+  "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
+  "com.h2database" % "h2" % "1.4.197"
+)
