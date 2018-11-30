@@ -1,0 +1,39 @@
+POST http://localhost:8888/jobs
+Content-Type: application/json
+
+{
+  "proto": "https",
+  "host" : "akka.io"
+}
+
+###
+
+POST http://localhost:8888/jobs
+Content-Type: application/json
+
+{
+  "proto": "https",
+  "host" : "monix.io"
+}
+
+###
+
+POST http://localhost:9999/jobs
+Content-Type: application/json
+
+{
+  "proto": "https",
+  "host" : "akka.io"
+}
+
+###
+
+POST http://localhost:9999/jobs
+Content-Type: application/json
+
+{
+  "proto": "https",
+  "host" : "monix.io"
+}
+
+###
