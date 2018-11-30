@@ -11,13 +11,27 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlickStorage(implicit ec: ExecutionContext) extends JobStorage[DBIO] {
   import SlickStorage._
 
-  override def snapshot(): DBIO[Map[String, JobStatus]] =
-    for (statuses <- jobs.result)
-      yield statuses.map(s => s.id -> JobStatus(s.isCompleted, Map.empty)).toMap
+  override def snapshot(): DBIO[Map[String, JobStatus]] = {
+    val query = for {
+      hostCounter <- hostCounters
+      job <- hostCounter.job
+    } yield (job, hostCounter)
 
+    for (pairs <- query.result)
+      yield pairs.groupBy(_._1).mapValues(_.map(_._2)).map { case (s, hosts) =>
+        s.id -> JobStatus(s.isCompleted, hosts.map(h => h.host -> h.counter).toMap)
+      }
+  }
 
-  override def updateJob(key: String, status: JobStatus): DBIO[Unit] =
-    jobs.insertOrUpdate(Job(key, status.isCompleted)).map(_ => ())
+  override def updateJob(key: String, status: JobStatus): DBIO[Unit] = {
+    def insertOrUpdateHostCounter(host: String, counter: Int): DBIO[Unit] =
+      hostCounters.insertOrUpdate(HostCounter(key, host, counter)).map(_ => ())
+
+    for {
+      _ <- jobs.insertOrUpdate(Job(key, status.isCompleted))
+      _ <- DBIO.sequence(status.hosts.map((insertOrUpdateHostCounter _).tupled))
+    } yield ()
+  }
 }
 
 object SlickStorage {
@@ -28,7 +42,7 @@ object SlickStorage {
   def build[F[_]](implicit dbExecutor: FunK[DBIO, F], ec: ExecutionContext): JobStorage[F] =
     JobStorage.convertedStorage(new SlickStorage, dbExecutor)
 
-  def setup: DBIO[Unit] = jobs.schema.create
+  def setup: DBIO[Unit] = (jobs.schema ++ hostCounters.schema).create
 
   class Jobs(tag: Tag) extends Table[Job](tag, "JOBS") {
     def id = column[String]("ID", O.PrimaryKey)
@@ -37,5 +51,18 @@ object SlickStorage {
     def * = (id, isCompleted) <> (Job.tupled, Job.unapply)
   }
 
+  class HostCounters(tag: Tag) extends Table[HostCounter](tag, "HOST_COUNTERS") {
+    def jobId = column[String]("JOB_ID")
+    def host = column[String]("HOST")
+    def counter = column[Int]("COUNTER")
+
+    def * = (jobId, host, counter) <> (HostCounter.tupled, HostCounter.unapply)
+
+    def pk = primaryKey("PK", (jobId, host))
+
+    def job = foreignKey("JOB_FK", jobId, jobs)(_.id)
+  }
+
   val jobs = TableQuery[Jobs]
+  val hostCounters = TableQuery[HostCounters]
 }
