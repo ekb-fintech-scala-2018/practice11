@@ -11,18 +11,13 @@ import ru.tinkoff.fintech.crwlr.httpserver.JobStatus
 class DoobieStorage extends JobStorage[ConnectionIO] {
 
   override def snapshot(): ConnectionIO[Map[String, JobStatus]] = {
-    def loadJobs: ConnectionIO[List[Job]] =
-      sql"SELECT id, is_completed FROM JOBS".query[Job].to[List]
+    val query = (sql"SELECT id, is_completed, job_id, host, counter FROM jobs, host_counters " ++
+      sql"WHERE jobs.id = host_counters.job_id").query[(Job, HostCounter)].to[List]
 
-    def loadHostCounters(jobId: String): ConnectionIO[List[HostCounter]] =
-      sql"SELECT job_id, host, counter FROM host_counters WHERE job_id = $jobId".query[HostCounter].to[List]
-
-    for {
-      statuses <- loadJobs
-      hostCounters <- statuses.traverse(s => loadHostCounters(s.id).map(hcs => s -> hcs))
-    } yield hostCounters.map { case (s, hcs) =>
-      s.id -> JobStatus(s.isCompleted, hcs.map(h => h.host -> h.counter).toMap)
-    }.toMap
+    for (pairs <- query)
+      yield pairs.groupBy(_._1).mapValues(_.map(_._2)).map { case (s, hosts) =>
+        s.id -> JobStatus(s.isCompleted, hosts.map(h => h.host -> h.counter).toMap)
+      }
   }
 
   override def updateJob(key: String, status: JobStatus): ConnectionIO[Unit] = {
