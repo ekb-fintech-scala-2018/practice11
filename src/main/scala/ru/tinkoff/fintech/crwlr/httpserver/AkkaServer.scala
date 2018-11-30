@@ -1,24 +1,19 @@
 package ru.tinkoff.fintech.crwlr.httpserver
 
-import java.util.UUID
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.ActorMaterializer
 import monix.execution.Scheduler
-import ru.tinkoff.fintech.crwlr.{Launcher, ServerProgram}
-import ru.tinkoff.fintech.crwlr.httpclient.Url
 
-import scala.collection.concurrent.TrieMap
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-class AkkaServer(
-                  httpInterface: String,
-                  httpPort: Int,
-                  crawlerType: String,
-                  jb: JobManager
-  )(implicit actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, scheduler: Scheduler) extends Directives {
+class AkkaServer(httpInterface: String,
+                 httpPort: Int,
+                 crawlerType: String,
+                 jb: JobManager[Future]
+                )(implicit actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, scheduler: Scheduler) extends Directives {
 
   import AkkaHttpCirceSupport._
 
@@ -33,7 +28,6 @@ class AkkaServer(
         pathEndOrSingleSlash {
           post {
             entity(as[AddJob]) { addJob =>
-              val jobKey = UUID.randomUUID().toString
               complete(jb.create(crawlerType, addJob))
             }
           }

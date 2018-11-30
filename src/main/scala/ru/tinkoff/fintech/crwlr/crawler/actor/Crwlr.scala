@@ -16,8 +16,6 @@ object Crwlr {
     import actorSystem.dispatcher
     implicit val materializer = ActorMaterializer()
 
-    val akkaHttpClient = new AkkaHttpClient()
-
     def wrkFactory(manager: ActorRef): Props =
       Props(new Worker(
         httpClient,

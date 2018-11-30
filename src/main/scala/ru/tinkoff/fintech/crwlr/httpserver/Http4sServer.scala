@@ -9,11 +9,10 @@ import org.http4s.server.blaze._
 
 import scala.concurrent.ExecutionContext
 
-class Http4sServer(
-                    httpInterface: String,
-                    httpPort: Int,
-                    crawlerType: String,
-                    jb: JobManager
+class Http4sServer(httpInterface: String,
+                   httpPort: Int,
+                   crawlerType: String,
+                   jb: JobManager[IO]
                   )(implicit ec: ExecutionContext) {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ec)
@@ -22,7 +21,7 @@ class Http4sServer(
   implicit val decoder = jsonOf[IO, AddJob]
 
   val routes = HttpRoutes.of[IO] {
-    case req @ GET -> Root / "jobs" => Ok(jb.snapshot.asJson)
+    case req @ GET -> Root / "jobs" => Ok(jb.snapshot.map(_.asJson))
     case req @ POST -> Root / "jobs" =>
       for {
         // Decode a User request

@@ -15,7 +15,10 @@ object CmdLine extends App {
     val config = ConfigFactory.load()
     val uri = new URI(args(0))
     val crawlerType = config.getString("crawler")
-    Launcher.launch(
+
+    val launcher = new Launcher()
+
+    launcher.launch(
       crawlerType,
       Url(host = uri.getHost, path = Some(uri.getPath), proto = uri.getScheme),
       Program0

@@ -1,4 +1,5 @@
 package ru.tinkoff.fintech.crwlr
+import cats.Id
 import cats.effect.IO
 import monix.eval.Task
 
@@ -29,5 +30,17 @@ object FunK {
           case succ@ Right(_) => cb(succ)
         }
       }
+  }
+
+  implicit val future2io: FunK[Future, IO] = new FunK[Future, IO] {
+    override def apply[A](h: => Future[A]): IO[A] = IO.fromFuture(IO(h))
+  }
+
+  implicit val id2future: FunK[Id, Future] = new FunK[Id, Future] {
+    override def apply[A](h: => Id[A]): Future[A] = Future.successful(h)
+  }
+
+  implicit val id2io: FunK[Id, IO] = new FunK[Id, IO] {
+    override def apply[A](h: => Id[A]): IO[A] = IO(h)
   }
 }

@@ -1,34 +1,28 @@
 package ru.tinkoff.fintech.crwlr.httpserver
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import monix.execution.Scheduler
+import cats.Functor
+import cats.syntax.functor._
 import ru.tinkoff.fintech.crwlr.httpclient.Url
-import ru.tinkoff.fintech.crwlr.{Launcher, ServerProgram}
+import ru.tinkoff.fintech.crwlr.httpserver.storage.JobStorage
+import ru.tinkoff.fintech.crwlr.{Launcher, RunAsync, ServerProgram}
 
-import scala.collection.concurrent.TrieMap
+class JobManager[F[_] :RunAsync :Functor](launcher: Launcher)(implicit jobStorage: JobStorage[F]) {
 
-class JobManager(implicit actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, scheduler: Scheduler) {
-  private val jobsMap = TrieMap.empty[String,JobStatus]
+  def snapshot: F[Map[String, JobStatus]] = jobStorage.snapshot()
 
-  def snapshot = jobsMap.snapshot()
-  def create(crawlerType: String, addJob: AddJob): String = {
+  def create(crawlerType: String, addJob: AddJob): F[String] = {
     val jobKey = UUID.randomUUID().toString
 
-    Launcher.launch(
+    launcher.launch(
       crawlerType,
       Url(proto = addJob.proto, host = addJob.host),
       ServerProgram(
-        st => {
-          jobsMap.put(jobKey, JobStatus(isCompleted = false, st.values))
-        },
-        res => {
-          jobsMap.put(jobKey, JobStatus(isCompleted = true, res.values))
-        }
+        st => RunAsync[F].runAsync(jobStorage.updateJob(jobKey, JobStatus(isCompleted = false, st.values))),
+        res => RunAsync[F].runAsync(jobStorage.updateJob(jobKey, JobStatus(isCompleted = true, res.values)))
       )
     )
 
-    jobKey
+    jobStorage.updateJob(jobKey, JobStatus(isCompleted = false, Map.empty)).map(_ => jobKey)
   }
 }

@@ -6,12 +6,12 @@ import monix.execution.Scheduler
 import ru.tinkoff.fintech.crwlr.crawler.Crawler
 import ru.tinkoff.fintech.crwlr.httpclient._
 
-object Launcher {
+class Launcher(implicit actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, scheduler: Scheduler) {
   def launch(
     crawlerType: String,
     url: Url,
-    program: Program)(
-    implicit actorSystem: ActorSystem, actorMaterializer: ActorMaterializer, scheduler: Scheduler) = {
+    program: Program): Unit = {
+
     crawlerType match {
       case "akka/akka" =>
 
